@@ -12,8 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
         habits:         loadData('habits')        || [],
         projects:       loadData('projects')      || [{ id: 'general', name: 'General', isArchived: false }],
         tasks:          loadData('tasks')         || [],
-        blocks:         loadData('todayBlocks')   || [],      // today's blocks
-        _quickTaskDraft: null,                                // temp: task being added via quick-add
+        blocks:         loadData('todayBlocks')   || [],
+        // Stage 4
+        todayHabitCompletion: loadData('todayHabitCompletion') || {},
+        scoreEvents:    loadData('scoreEvents')   || [],
+        activeTimer:    null,
+        ruleEngineInterval:  null,
+        countdownInterval:   null,
+        _quickTaskDraft: null,
     };
 
     // =========================================================================
@@ -182,15 +188,713 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =========================================================================
-    // 5. FOCUS PAGE
+    // 5. FOCUS PAGE — STAGE 4
     // =========================================================================
+
+    // --- Photo sheet wiring ---
+    const photoSheetOverlay  = document.getElementById('photo-sheet-overlay');
+    const photoConfirmBtn    = document.getElementById('photo-confirm-btn');
+    const photoChooseBtn     = document.getElementById('photo-choose-btn');
+    const photoCancelBtn     = document.getElementById('photo-cancel-btn');
+    const photoUploadInput   = document.getElementById('photo-upload-input');
+    const photoPreviewArea   = document.getElementById('photo-preview-area');
+    const photoPreviewImg    = document.getElementById('photo-preview-img');
+    const photoPlaceholder   = document.getElementById('photo-placeholder');
+    const photoSheetHabitName = document.getElementById('photo-sheet-habit-name');
+    let _photoHabitId   = null;
+    let _photoImageData = null;
+
+    if (photoChooseBtn)  photoChooseBtn.addEventListener('click', () => photoUploadInput && photoUploadInput.click());
+    if (photoPreviewArea) photoPreviewArea.addEventListener('click', () => photoUploadInput && photoUploadInput.click());
+    if (photoCancelBtn)  photoCancelBtn.addEventListener('click', closePhotoSheet);
+    if (photoSheetOverlay) {
+        photoSheetOverlay.addEventListener('click', e => { if (e.target === photoSheetOverlay) closePhotoSheet(); });
+    }
+    if (photoUploadInput) {
+        photoUploadInput.addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = ev => {
+                _photoImageData = ev.target.result;
+                if (photoPreviewImg) { photoPreviewImg.src = _photoImageData; photoPreviewImg.style.display = 'block'; }
+                if (photoPlaceholder) photoPlaceholder.style.display = 'none';
+                if (photoConfirmBtn)  photoConfirmBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    if (photoConfirmBtn) {
+        photoConfirmBtn.addEventListener('click', () => {
+            if (_photoHabitId && _photoImageData) {
+                completeHabitWithPhoto(_photoHabitId, _photoImageData);
+                closePhotoSheet();
+            }
+        });
+    }
+
+    // --- Checkpoint modal wiring ---
+    const checkpointModalOverlay = document.getElementById('checkpoint-modal-overlay');
+    const checkpointModalConfirm = document.getElementById('checkpoint-modal-confirm');
+    const checkpointReasonOpts   = document.getElementById('checkpoint-reason-options');
+    let _checkpointResolve = null;
+    let _selectedReason    = null;
+
+    if (checkpointReasonOpts) {
+        checkpointReasonOpts.querySelectorAll('.reason-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                checkpointReasonOpts.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                _selectedReason = btn.dataset.reason;
+                if (checkpointModalConfirm) {
+                    checkpointModalConfirm.disabled = false;
+                    checkpointModalConfirm.textContent = 'Continue';
+                }
+            });
+        });
+    }
+    if (checkpointModalConfirm) {
+        checkpointModalConfirm.addEventListener('click', () => {
+            if (_checkpointResolve) {
+                const reason = _selectedReason || 'acknowledged';
+                closeCheckpointModal();
+                _checkpointResolve(reason);
+            }
+        });
+    }
+
+    // --- Backlog panel toggle ---
+    const focusBacklogToggle = document.getElementById('focus-backlog-toggle');
+    const focusBacklogPanel  = document.getElementById('focus-backlog-panel');
+    if (focusBacklogToggle) {
+        focusBacklogToggle.addEventListener('click', () => {
+            const isOpen = focusBacklogPanel.style.display !== 'none';
+            focusBacklogPanel.style.display = isOpen ? 'none' : 'block';
+            const cnt = getPendingBacklogCount();
+            focusBacklogToggle.innerHTML = `${isOpen ? '\u25be' : '\u25b4'} Backlog ${cnt > 0 ? '(' + cnt + ')' : ''}`;
+            if (!isOpen) renderFocusBacklogPanel();
+        });
+    }
+
+    // =====================================================================
+    // RENDER
+    // =====================================================================
+
     function renderFocusPage() {
-        // For Stages 1–3, show the empty state. Stage 4 will populate focus-active-view.
-        const hasBlocks = state.blocks.length > 0;
-        const emptyState  = document.getElementById('focus-empty-state');
-        const activeView  = document.getElementById('focus-active-view');
-        if (emptyState) emptyState.style.display = hasBlocks ? 'none' : 'flex';
-        if (activeView) activeView.style.display  = hasBlocks ? 'block' : 'none';
+        const today = new Date().toISOString().split('T')[0];
+        const todayBlocks = state.blocks.filter(b => b.date === today);
+
+        const emptyState = document.getElementById('focus-empty-state');
+        const activeView = document.getElementById('focus-active-view');
+
+        if (todayBlocks.length === 0) {
+            if (emptyState) emptyState.style.display = 'flex';
+            if (activeView) activeView.style.display  = 'none';
+            return;
+        }
+
+        if (emptyState) emptyState.style.display = 'none';
+        if (activeView) activeView.style.display  = 'block';
+
+        buildFocusTaskList(todayBlocks);
+        updateBlockStatusHeader();
+        updateScoreDisplay();
+        updateBacklogCount();
+    }
+
+    function buildFocusTaskList(todayBlocks) {
+        const list = document.getElementById('focus-task-list');
+        if (!list) return;
+        list.innerHTML = '';
+        const sorted = [...todayBlocks].sort((a, b) => a.startTime.localeCompare(b.startTime));
+        sorted.forEach(block => list.appendChild(buildBlockSection(block)));
+    }
+
+    function buildBlockSection(block) {
+        const section   = document.createElement('div');
+        section.className = 'focus-block-section';
+        section.dataset.blockId = block.id;
+
+        const typeKey   = block.blockType.toLowerCase();
+        const dotColors = { open: 'var(--block-open)', fixed: 'var(--block-fixed)', habit: 'var(--block-habit)', meeting: 'var(--block-meeting)' };
+        const dotColor  = dotColors[typeKey] || 'var(--accent)';
+        const statusClass = { passed: 'focus-block-passed', failed: 'focus-block-failed', pending: 'focus-block-pending' }[block.checkpointStatus] || 'focus-block-pending';
+        const statusLabel = { passed: '\u2713 Passed', failed: '\u2715 Failed', pending: 'Pending' }[block.checkpointStatus] || 'Pending';
+        const projectLabel = block.projectId && block.projectId !== 'general' ? ` \u00b7 ${getProjectName(block.projectId)}` : '';
+
+        const header = document.createElement('div');
+        header.className = 'focus-block-section-header';
+        header.innerHTML = `
+            <span class="focus-block-section-dot" style="background-color:${dotColor};"></span>
+            <span class="focus-block-section-title">${escHtml(block.label)}${escHtml(projectLabel)}</span>
+            <span class="focus-block-section-time">${block.startTime}\u2013${block.endTime}</span>
+            <span class="focus-block-section-status ${statusClass}">${statusLabel}</span>
+        `;
+        section.appendChild(header);
+
+        if (block.blockType === 'Meeting') {
+            const row = document.createElement('div');
+            row.className = 'focus-meeting-block';
+            row.innerHTML = `<span class="focus-meeting-icon">\ud83d\udcc5</span><span class="focus-meeting-label">${escHtml(block.label)}</span><span class="focus-meeting-time">${block.startTime}\u2013${block.endTime}</span>`;
+            section.appendChild(row);
+            return section;
+        }
+
+        if (block.blockType === 'Habit') {
+            const active = state.habits.filter(h => h.isActive);
+            if (!active.length) {
+                const e = document.createElement('p'); e.className = 'empty-state'; e.style.padding = '0.5rem 0';
+                e.textContent = 'No habits configured. Go to Profile \u2192 Habits.';
+                section.appendChild(e);
+            } else {
+                active.forEach(h => section.appendChild(buildHabitItem(h, block.id)));
+            }
+            return section;
+        }
+
+        // Open / Fixed
+        const pending   = state.tasks.filter(t => t.blockId === block.id && t.status !== 'completed');
+        const done      = state.tasks.filter(t => t.blockId === block.id && t.status === 'completed');
+
+        if (!pending.length && !done.length) {
+            const e = document.createElement('p'); e.className = 'empty-state'; e.style.padding = '0.5rem 0';
+            e.textContent = 'No tasks assigned. Go to Plan to assign tasks.';
+            section.appendChild(e);
+        } else {
+            pending.forEach(t => section.appendChild(buildTaskItem(t)));
+
+            if (done.length) {
+                const doneToggle = document.createElement('button');
+                doneToggle.className = 'focus-done-toggle';
+                const doneList   = document.createElement('div');
+                doneList.className = 'focus-done-list';
+                done.forEach(t => doneList.appendChild(buildTaskItem(t)));
+
+                doneToggle.innerHTML = `\u25be ${done.length} done`;
+                doneToggle.addEventListener('click', () => {
+                    doneList.classList.toggle('expanded');
+                    doneToggle.innerHTML = doneList.classList.contains('expanded')
+                        ? `\u25b4 ${done.length} done` : `\u25be ${done.length} done`;
+                });
+                section.appendChild(doneToggle);
+                section.appendChild(doneList);
+            }
+        }
+        return section;
+    }
+
+    function buildHabitItem(habit, blockId) {
+        const comp = state.todayHabitCompletion[habit.id] || { completed: false, photoUrl: null };
+        const isPhoto     = habit.completionMethod === 'photo';
+        const isCompleted = comp.completed;
+
+        const item = document.createElement('div');
+        item.className = `focus-habit-item${isCompleted ? ' completed' : ''}`;
+        item.dataset.habitId = habit.id;
+
+        const checkBtn = document.createElement('button');
+        checkBtn.className = `focus-habit-check${isCompleted ? ' checked' : ''}`;
+        checkBtn.innerHTML = isCompleted ? '\u2713' : '';
+        checkBtn.title = isCompleted ? 'Completed (tap to undo)' : 'Mark complete';
+        checkBtn.addEventListener('click', () => {
+            if (!isPhoto) toggleHabitComplete(habit.id, blockId);
+            else if (!isCompleted) openPhotoSheet(habit.id);
+        });
+
+        const info = document.createElement('div');
+        info.className = 'focus-habit-info';
+        info.innerHTML = `<div class="focus-habit-name">${escHtml(habit.name)}</div><div class="focus-habit-target">${habit.targetValue} ${escHtml(habit.targetUnit)}</div>`;
+
+        item.appendChild(checkBtn);
+        item.appendChild(info);
+
+        if (isPhoto) {
+            if (comp.photoUrl) {
+                const thumb = document.createElement('img');
+                thumb.className = 'focus-habit-photo-thumb';
+                thumb.src = comp.photoUrl;
+                thumb.alt = 'Proof';
+                thumb.addEventListener('click', () => openPhotoSheet(habit.id));
+                item.appendChild(thumb);
+            } else {
+                const photoBtn = document.createElement('button');
+                photoBtn.className = 'focus-habit-photo-btn';
+                photoBtn.innerHTML = '\ud83d\udcf7';
+                photoBtn.title = 'Upload proof';
+                photoBtn.addEventListener('click', () => openPhotoSheet(habit.id));
+                item.appendChild(photoBtn);
+            }
+        }
+        return item;
+    }
+
+    function buildTaskItem(task) {
+        const isActive    = state.activeTimer?.taskId === task.id;
+        const isCompleted = task.status === 'completed';
+        const prioColors  = { Low: 'var(--priority-low)', Normal: 'var(--priority-normal)', High: 'var(--priority-high)', Critical: 'var(--priority-critical)' };
+        const barColor    = prioColors[task.priority] || 'var(--priority-normal)';
+        const proj        = getProjectName(task.projectId);
+
+        const item = document.createElement('div');
+        item.className = `focus-task-item${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`;
+        item.dataset.taskId = task.id;
+
+        const bar = document.createElement('div');
+        bar.className = 'focus-task-priority-bar';
+        bar.style.backgroundColor = barColor;
+        item.appendChild(bar);
+
+        const content = document.createElement('div');
+        content.className = 'focus-task-content';
+        content.innerHTML = `
+            <div class="focus-task-name">${escHtml(task.name)}</div>
+            <div class="focus-task-meta">
+                <span class="badge badge-duration">${task.estimatedDuration}m</span>
+                <span class="badge badge-priority-${task.priority.toLowerCase()}">${task.priority}</span>
+                ${proj !== 'General' ? `<span class="muted" style="font-size:0.75rem;">${escHtml(proj)}</span>` : ''}
+                ${task.isChallenge ? '<span class="badge" style="background:var(--highlight-dim);color:var(--highlight);">&thinsp;\u26a1&thinsp;</span>' : ''}
+            </div>
+        `;
+        item.appendChild(content);
+
+        const controls = document.createElement('div');
+        controls.className = 'focus-task-controls';
+
+        if (isCompleted) {
+            controls.innerHTML = `<span style="color:var(--accent-dark); font-size:1.1rem;">\u2713</span>`;
+        } else if (isActive) {
+            const timerEl = document.createElement('div');
+            timerEl.className = 'focus-timer-display';
+            timerEl.id = `timer-${task.id}`;
+            timerEl.textContent = formatElapsed(state.activeTimer.elapsed);
+
+            const pauseBtn = document.createElement('button');
+            pauseBtn.className = 'btn btn-sm btn-ghost';
+            pauseBtn.textContent = '\u23f8';
+            pauseBtn.title = 'Pause';
+            pauseBtn.addEventListener('click', e => { e.stopPropagation(); pauseActiveTimer(); });
+
+            const doneBtn = document.createElement('button');
+            doneBtn.className = 'btn btn-sm btn-primary';
+            doneBtn.textContent = '\u2713 Done';
+            doneBtn.addEventListener('click', e => { e.stopPropagation(); markTaskDone(task.id); });
+
+            controls.appendChild(timerEl);
+            controls.appendChild(pauseBtn);
+            controls.appendChild(doneBtn);
+        } else {
+            const startBtn = document.createElement('button');
+            startBtn.className = 'btn btn-sm btn-ghost';
+            startBtn.textContent = '\u25b6';
+            startBtn.title = 'Start timer';
+            startBtn.addEventListener('click', e => { e.stopPropagation(); startTaskTimer(task.id); });
+            controls.appendChild(startBtn);
+        }
+        item.appendChild(controls);
+
+        if (!isCompleted) {
+            item.addEventListener('click', () => { if (state.activeTimer?.taskId !== task.id) startTaskTimer(task.id); });
+        }
+        return item;
+    }
+
+    // =====================================================================
+    // TASK TIMERS
+    // =====================================================================
+
+    function startTaskTimer(taskId) {
+        if (state.activeTimer) pauseActiveTimer();
+        const task = state.tasks.find(t => t.id === taskId);
+        if (!task || task.status === 'completed') return;
+        task.status = 'in-progress';
+        saveData('tasks', state.tasks);
+        state.activeTimer = { taskId, startedAt: Date.now(), elapsed: 0, intervalId: null };
+        state.activeTimer.intervalId = setInterval(() => {
+            if (!state.activeTimer) return;
+            state.activeTimer.elapsed = Math.floor((Date.now() - state.activeTimer.startedAt) / 1000);
+            const el = document.getElementById(`timer-${taskId}`);
+            if (el) el.textContent = formatElapsed(state.activeTimer.elapsed);
+        }, 1000);
+        const today = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today));
+        updateBlockStatusHeader();
+        showToast(`Timer started: \u201c${task.name}\u201d`, 'success');
+    }
+
+    function pauseActiveTimer() {
+        if (!state.activeTimer) return;
+        clearInterval(state.activeTimer.intervalId);
+        const task = state.tasks.find(t => t.id === state.activeTimer.taskId);
+        if (task) {
+            task.actualDuration = (task.actualDuration || 0) + Math.floor(state.activeTimer.elapsed / 60);
+            if (task.status === 'in-progress') task.status = 'pending';
+            saveData('tasks', state.tasks);
+        }
+        state.activeTimer = null;
+        const today = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today));
+    }
+
+    function markTaskDone(taskId) {
+        const task = state.tasks.find(t => t.id === taskId);
+        if (!task) return;
+        if (state.activeTimer?.taskId === taskId) {
+            clearInterval(state.activeTimer.intervalId);
+            task.actualDuration = (task.actualDuration || 0) + Math.floor(state.activeTimer.elapsed / 60);
+            state.activeTimer = null;
+        }
+        task.status = 'completed';
+        saveData('tasks', state.tasks);
+        const actual = task.actualDuration || task.estimatedDuration;
+        const pts    = actual <= task.estimatedDuration * 0.9 ? 7 : 5;
+        addScoreEvent(`Task \u201c${task.name}\u201d completed${pts === 7 ? ' early' : ''}`, pts, 'task');
+        showToast(`\u201c${task.name}\u201d done! +${pts} pts`, 'success');
+        const today = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today));
+        updateScoreDisplay();
+    }
+
+    function formatElapsed(totalSec) {
+        const h = Math.floor(totalSec / 3600);
+        const m = Math.floor((totalSec % 3600) / 60);
+        const s = totalSec % 60;
+        if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    // =====================================================================
+    // END-OF-DAY COUNTDOWN
+    // =====================================================================
+
+    function startEndOfDayCountdown() {
+        if (state.countdownInterval) clearInterval(state.countdownInterval);
+        function tick() {
+            const el = document.getElementById('focus-countdown-value');
+            if (!el) return;
+            const sleepTime = state.userProfile?.idealDay?.sleepTime;
+            if (!sleepTime) { el.textContent = '--:--:--'; return; }
+            const [sh, sm] = sleepTime.split(':').map(Number);
+            const now = new Date();
+            const sleep = new Date();
+            sleep.setHours(sh, sm, 0, 0);
+            if (sleep <= now) sleep.setDate(sleep.getDate() + 1);
+            const sec = Math.max(0, Math.floor((sleep - now) / 1000));
+            const h = Math.floor(sec / 3600);
+            const m = Math.floor((sec % 3600) / 60);
+            const s = sec % 60;
+            el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+            el.classList.toggle('ending-soon', sec < 7200);
+        }
+        tick();
+        state.countdownInterval = setInterval(tick, 1000);
+    }
+
+    // =====================================================================
+    // HABIT COMPLETION
+    // =====================================================================
+
+    function toggleHabitComplete(habitId, blockId) {
+        const cur  = state.todayHabitCompletion[habitId] || { completed: false, photoUrl: null };
+        const next = !cur.completed;
+        state.todayHabitCompletion[habitId] = { ...cur, completed: next };
+        saveData('todayHabitCompletion', state.todayHabitCompletion);
+        if (next) {
+            addScoreEvent('Habit completed', 3, 'habit');
+            showToast('Habit done! +3 pts', 'success');
+        } else {
+            const idx = [...state.scoreEvents].reverse().findIndex(e => e.type === 'habit');
+            if (idx !== -1) state.scoreEvents.splice(state.scoreEvents.length - 1 - idx, 1);
+            saveData('scoreEvents', state.scoreEvents);
+            showToast('Habit unmarked.');
+        }
+        updateScoreDisplay();
+        const today = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today));
+    }
+
+    function openPhotoSheet(habitId) {
+        _photoHabitId   = habitId;
+        _photoImageData = null;
+        if (photoConfirmBtn)  photoConfirmBtn.disabled = true;
+        if (photoPreviewImg)  { photoPreviewImg.src = ''; photoPreviewImg.style.display = 'none'; }
+        if (photoPlaceholder) photoPlaceholder.style.display = 'flex';
+        if (photoUploadInput) photoUploadInput.value = '';
+        const habit = state.habits.find(h => h.id === habitId);
+        if (photoSheetHabitName && habit) photoSheetHabitName.textContent = habit.name;
+        const existing = state.todayHabitCompletion[habitId];
+        if (existing?.photoUrl) {
+            _photoImageData = existing.photoUrl;
+            if (photoPreviewImg)  { photoPreviewImg.src = existing.photoUrl; photoPreviewImg.style.display = 'block'; }
+            if (photoPlaceholder) photoPlaceholder.style.display = 'none';
+            if (photoConfirmBtn)  photoConfirmBtn.disabled = false;
+        }
+        if (photoSheetOverlay) photoSheetOverlay.style.display = 'flex';
+    }
+
+    function closePhotoSheet() {
+        if (photoSheetOverlay) photoSheetOverlay.style.display = 'none';
+        _photoHabitId   = null;
+        _photoImageData = null;
+        if (photoUploadInput) photoUploadInput.value = '';
+    }
+
+    function completeHabitWithPhoto(habitId, photoData) {
+        state.todayHabitCompletion[habitId] = { completed: true, photoUrl: photoData };
+        saveData('todayHabitCompletion', state.todayHabitCompletion);
+        const alreadyScored = state.scoreEvents.some(e => e.type === 'habit-photo' && e.item.includes(habitId));
+        if (!alreadyScored) addScoreEvent(`Habit photo confirmed (${habitId})`, 3, 'habit-photo');
+        showToast('Photo saved! Habit complete. +3 pts', 'success');
+        updateScoreDisplay();
+        const today = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today));
+    }
+
+    // =====================================================================
+    // SCORE SYSTEM
+    // =====================================================================
+
+    function addScoreEvent(item, points, type = 'general') {
+        state.scoreEvents.push({ item, points, type, timestamp: Date.now() });
+        saveData('scoreEvents', state.scoreEvents);
+    }
+
+    function calculateCurrentScore() {
+        return state.scoreEvents.reduce((s, e) => s + e.points, 0);
+    }
+
+    function getMaxScore() {
+        const today = new Date().toISOString().split('T')[0];
+        const todayBlocks = state.blocks.filter(b => b.date === today);
+        const taskCount   = state.tasks.filter(t => todayBlocks.some(b => b.taskIds?.includes(t.id))).length;
+        const habitCount  = state.habits.filter(h => h.isActive).length;
+        const blockCount  = todayBlocks.filter(b => b.blockType !== 'Meeting').length;
+        return Math.max(1, taskCount * 5 + habitCount * 3 + blockCount * 5 + 10);
+    }
+
+    function updateScoreDisplay() {
+        const score = calculateCurrentScore();
+        const max   = getMaxScore();
+        const pct   = (score / max) * 100;
+        const numEl = document.getElementById('focus-score-number');
+        const maxEl = document.getElementById('focus-score-max');
+        const zoneEl = document.getElementById('focus-score-zone');
+        if (numEl) {
+            const prev = parseInt(numEl.textContent) || 0;
+            numEl.textContent = score;
+            if (score > prev) { numEl.classList.add('score-up');   setTimeout(() => numEl.classList.remove('score-up'),   600); }
+            if (score < prev) { numEl.classList.add('score-down'); setTimeout(() => numEl.classList.remove('score-down'), 600); }
+        }
+        if (maxEl)  maxEl.textContent  = `/ ${max} pts`;
+        if (zoneEl) {
+            const zone   = pct >= 80 ? 'green' : pct >= 50 ? 'yellow' : 'red';
+            const labels = { green: '\ud83d\udfe2 Good', yellow: '\ud83d\udfe1 Acceptable', red: '\ud83d\udd34 Needs work' };
+            zoneEl.textContent = labels[zone];
+            zoneEl.style.color = pct >= 80 ? 'var(--score-green)' : pct >= 50 ? 'var(--score-yellow)' : 'var(--score-red)';
+        }
+    }
+
+    // =====================================================================
+    // BLOCK STATUS HEADER
+    // =====================================================================
+
+    function updateBlockStatusHeader() {
+        const nameEl  = document.getElementById('focus-block-name');
+        const infoEl  = document.getElementById('focus-checkpoint-info');
+        const dotEl   = document.getElementById('focus-block-dot');
+        if (!nameEl) return;
+
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        const todayBlocks = state.blocks.filter(b => b.date === today);
+
+        const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+        const nowMin = now.getHours()*60 + now.getMinutes();
+
+        const current = todayBlocks.find(b => toMin(b.startTime) <= nowMin && nowMin <= toMin(b.endTime));
+        const next    = [...todayBlocks].filter(b => toMin(b.startTime) > nowMin).sort((a,b) => a.startTime.localeCompare(b.startTime))[0];
+        const block   = current || next;
+
+        if (!block) { nameEl.textContent = 'All blocks done'; if (infoEl) infoEl.textContent = 'Great work today.'; return; }
+
+        nameEl.textContent = current ? block.label : `Next: ${block.label}`;
+
+        const cpMin = toMin(block.endTime) + block.gracePeriodMinutes;
+        const cpH   = Math.floor(cpMin/60) % 24;
+        const cpM   = cpMin % 60;
+        const cpStr = `${String(cpH).padStart(2,'0')}:${String(cpM).padStart(2,'0')}`;
+
+        if (current) {
+            const diffMin = Math.max(0, Math.floor((cpMin - nowMin)));
+            if (infoEl) infoEl.textContent = `checkpoint in ${diffMin}m (${cpStr})`;
+        } else {
+            if (infoEl) infoEl.textContent = `starts at ${block.startTime}`;
+        }
+
+        const dotColors = { open: 'var(--block-open)', fixed: 'var(--block-fixed)', habit: 'var(--block-habit)', meeting: 'var(--block-meeting)' };
+        if (dotEl) dotEl.style.backgroundColor = dotColors[block.blockType.toLowerCase()] || 'var(--accent)';
+    }
+
+    // =====================================================================
+    // FOCUS BACKLOG PANEL
+    // =====================================================================
+
+    function renderFocusBacklogPanel() {
+        const panel = document.getElementById('focus-backlog-panel');
+        if (!panel) return;
+        const unassigned = state.tasks.filter(t => !t.blockId && t.status === 'pending');
+        panel.innerHTML = '';
+        if (!unassigned.length) {
+            panel.innerHTML = '<p class="empty-state" style="padding:0.75rem 0;">Backlog is empty.</p>';
+            return;
+        }
+        unassigned.forEach(task => {
+            const row = document.createElement('div');
+            row.className = 'item-row task-card';
+            row.dataset.priority = task.priority;
+            row.style.marginBottom = '0.5rem';
+            row.innerHTML = `<div class="item-main"><div class="item-name">${escHtml(task.name)}</div><div class="item-meta"><span class="badge badge-duration">${task.estimatedDuration}m</span><span class="badge badge-priority-${task.priority.toLowerCase()}">${task.priority}</span></div></div>`;
+            panel.appendChild(row);
+        });
+    }
+
+    function getPendingBacklogCount() {
+        return state.tasks.filter(t => !t.blockId && t.status === 'pending').length;
+    }
+
+    function updateBacklogCount() {
+        const el  = document.getElementById('focus-backlog-count');
+        const cnt = getPendingBacklogCount();
+        if (el) el.textContent = cnt > 0 ? `(${cnt})` : '';
+    }
+
+    // =====================================================================
+    // RULE ENGINE
+    // =====================================================================
+
+    function startRuleEngine() {
+        if (state.ruleEngineInterval) clearInterval(state.ruleEngineInterval);
+        checkCheckpoints();
+        state.ruleEngineInterval = setInterval(checkCheckpoints, 30000);
+    }
+
+    async function checkCheckpoints() {
+        const now   = new Date();
+        const today = now.toISOString().split('T')[0];
+        const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+        const nowMin = now.getHours()*60 + now.getMinutes();
+        const due = state.blocks.filter(b =>
+            b.date === today &&
+            b.checkpointStatus === 'pending' &&
+            (toMin(b.endTime) + b.gracePeriodMinutes) <= nowMin
+        );
+        for (const block of due) {
+            await fireCheckpoint(block);
+        }
+    }
+
+    async function fireCheckpoint(block) {
+        block.checkpointFiredAt = new Date().toISOString();
+
+        if (block.blockType === 'Habit') {
+            const active   = state.habits.filter(h => h.isActive);
+            const allDone  = active.length === 0 || active.every(h => state.todayHabitCompletion[h.id]?.completed);
+            if (allDone) {
+                block.checkpointStatus = 'passed';
+                addScoreEvent(`Checkpoint passed: ${block.label}`, 5, 'checkpoint');
+                showToast(`\u2713 Habit checkpoint passed! +5 pts`, 'success');
+            } else {
+                const missed = active.filter(h => !state.todayHabitCompletion[h.id]?.completed);
+                const reason = await showCheckpointModal({
+                    icon: '\u23f0', title: `Checkpoint: ${block.label}`,
+                    body: `${missed.length} habit${missed.length > 1 ? 's' : ''} not completed: ${missed.map(h => h.name).join(', ')}`,
+                    needsReason: true,
+                });
+                block.checkpointStatus = 'failed';
+                block.failReason = reason;
+                addScoreEvent(`Habit checkpoint missed: ${block.label}`, -5, 'checkpoint');
+            }
+        } else if (block.blockType === 'Meeting') {
+            block.checkpointStatus = 'passed';
+        } else {
+            const assigned  = state.tasks.filter(t => t.blockId === block.id);
+            const completed = assigned.filter(t => t.status === 'completed');
+            const timed     = assigned.filter(t => (t.actualDuration || 0) > 0 || t.status !== 'pending');
+            if (!assigned.length || completed.length > 0 || timed.length > 0) {
+                block.checkpointStatus = 'passed';
+                addScoreEvent(`Checkpoint passed: ${block.label}`, 5, 'checkpoint');
+                showToast(`\u2713 Checkpoint passed! +5 pts`, 'success');
+            } else {
+                const reason = await showCheckpointModal({
+                    icon: '\ud83d\udea8', title: `Checkpoint missed: ${block.label}`,
+                    body: 'No tasks were started in this block. What happened?',
+                    needsReason: true,
+                });
+                block.checkpointStatus = 'failed';
+                block.failReason = reason;
+                addScoreEvent(`Work checkpoint missed: ${block.label}`, -5, 'checkpoint');
+                if (reason !== 'Something came up') {
+                    setTimeout(() => {
+                        const chatLink = document.querySelector('.nav-link[data-page="chat-page"]');
+                        if (chatLink) chatLink.click();
+                    }, 1200);
+                }
+            }
+        }
+        saveData('todayBlocks', state.blocks);
+        updateScoreDisplay();
+        const today2 = new Date().toISOString().split('T')[0];
+        buildFocusTaskList(state.blocks.filter(b => b.date === today2));
+        updateBlockStatusHeader();
+    }
+
+    function showCheckpointModal({ icon, title, body, needsReason }) {
+        return new Promise(resolve => {
+            _checkpointResolve = resolve;
+            _selectedReason    = null;
+            document.getElementById('checkpoint-modal-icon').textContent  = icon;
+            document.getElementById('checkpoint-modal-title').textContent = title;
+            document.getElementById('checkpoint-modal-body').textContent  = body;
+            const picker = document.getElementById('checkpoint-reason-picker');
+            if (picker) picker.style.display = needsReason ? 'block' : 'none';
+            if (checkpointModalConfirm) {
+                checkpointModalConfirm.disabled = needsReason;
+                checkpointModalConfirm.textContent = needsReason ? 'Select a reason to continue' : 'Continue';
+            }
+            if (!needsReason) _selectedReason = 'acknowledged';
+            if (checkpointReasonOpts) checkpointReasonOpts.querySelectorAll('.reason-btn').forEach(b => b.classList.remove('selected'));
+            if (checkpointModalOverlay) checkpointModalOverlay.style.display = 'flex';
+        });
+    }
+
+    function closeCheckpointModal() {
+        if (checkpointModalOverlay) checkpointModalOverlay.style.display = 'none';
+        _checkpointResolve = null;
+    }
+
+    // =====================================================================
+    // WAKE TIME CHECK (once per day)
+    // =====================================================================
+
+    function checkWakeTime() {
+        const todayKey = new Date().toISOString().split('T')[0];
+        const checked  = loadData('wakeChecked');
+        if (checked === todayKey) return; // already checked today
+        saveData('wakeChecked', todayKey);
+        const profile = state.userProfile;
+        if (!profile?.idealDay?.wakeTime) return;
+        const [wh, wm]  = profile.idealDay.wakeTime.split(':').map(Number);
+        const now       = new Date();
+        const idealMin  = wh * 60 + wm;
+        const actualMin = now.getHours() * 60 + now.getMinutes();
+        const diffMin   = actualMin - idealMin;
+        if (Math.abs(diffMin) <= 30) {
+            addScoreEvent('Woke up within 30 min of target', 5, 'wake');
+            showToast('On-time wake! +5 pts', 'success');
+        } else if (diffMin > 30) {
+            addScoreEvent('Woke up more than 30 min late', -5, 'wake');
+            showToast('Late start. -5 pts', 'error');
+        }
+        updateScoreDisplay();
     }
 
     // =========================================================================
@@ -1067,6 +1771,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function initialize() {
         if (state.userProfile) {
             showPage('focus-page');
+            startRuleEngine();
+            startEndOfDayCountdown();
+            checkWakeTime();
         } else {
             showPage('onboarding-page');
         }
