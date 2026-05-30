@@ -10,62 +10,59 @@
    1. DESIGN TOKENS
    ========================================================================= */
 :root {
-    /* Backgrounds — deep teal-derived dark */
-    --bg-base:      #071414;
-    --bg-surface:   #0d1e1e;
-    --bg-elevated:  #122828;
-    --bg-overlay:   #173232;
+    /* Backgrounds — Soft matte paper-dark palette */
+    --bg-base:      #181716; /* Soft ash charcoal black */
+    --bg-surface:   #22211f; /* Earthy dark card surface */
+    --bg-elevated:  #2d2b28; /* Earthy dark input fields & buttons */
+    --bg-overlay:   #383531; /* Focused panel modals / overlays */
 
-    /* Text — warm cream palette */
-    --text-primary:   #FFF0E4;
-    --text-secondary: #b8a898;
-    --text-muted:     #6b5f55;
-    --text-inverse:   #071414;
+    /* Text — Warm reading cream tones */
+    --text-primary:   #d9d2c9; /* Soft sepia off-white text */
+    --text-secondary: #8c857b; /* Desert dust medium text */
+    --text-muted:     #5e5a53; /* Low-contrast baseline text labels */
+    --text-inverse:   #181716; /* High contrast dark for primary active tags */
 
-    /* Accent — teal from the brand palette */
-    --accent:         #24B1B1;
-    --accent-dark:    #007979;
-    --accent-dim:     rgba(36, 177, 177, 0.12);
-    --accent-glow:    rgba(36, 177, 177, 0.28);
+    /* Accent — Terracotta clay copper */
+    --accent:         #ab7a4e; /* Clay copper brand signature indicator */
+    --accent-dark:    #845a35;
+    --accent-dim:     rgba(171, 122, 78, 0.12);
+    --accent-glow:    rgba(171, 122, 78, 0.25);
 
-    /* Peach highlight */
-    --highlight:      #FFE0C5;
-    --highlight-dim:  rgba(255, 224, 197, 0.1);
+    /* Peach highlights */
+    --highlight:      #e0be9b;
+    --highlight-dim:  rgba(224, 190, 155, 0.08);
 
-    /* Borders — teal-tinted dark */
-    --border:         #163030;
-    --border-light:   #1f4040;
+    /* Borders — Low contrast soft boundaries */
+    --border:         #2e2c29;
+    --border-light:   #3a3733;
 
-    /* Block type colors — teal-harmonious */
-    --block-open:     #007979;
-    --block-fixed:    #24B1B1;
-    --block-habit:    #9c5a8c;
-    --block-meeting:  #7a6a40;
+    /* Block type identification tags */
+    --block-open:     #5e7a68; /* Desaturated sage green */
+    --block-fixed:    #ab7a4e; /* Clay copper */
+    --block-habit:    #846b85; /* Dusty matte lavender */
+    --block-meeting:  #756d59; /* Muted olive mud */
 
-    /* Priority colors */
-    --priority-low:      #2a8080;
-    --priority-normal:   #24B1B1;
-    --priority-high:     #c47c3a;
-    --priority-critical: #c44a4a;
+    /* Priority level weights */
+    --priority-low:      #5e7a68;
+    --priority-normal:   #ab7a4e;
+    --priority-high:     #b86542;
+    --priority-critical: #a64444;
 
-    /* Score zones */
-    --score-green:   #007979;
-    --score-yellow:  #c4a43a;
-    --score-red:     #c44a4a;
+    /* Scoring zones */
+    --score-green:   #5e7a68;
+    --score-yellow:  #9c8959;
+    --score-red:     #a64444;
 
-    /* Layout */
+    /* Sizing constraints */
     --nav-height:    64px;
     --radius-sm:     6px;
     --radius-md:     10px;
     --radius-lg:     16px;
     --radius-pill:   100px;
 
-    /* Transitions */
-    --transition-fast:   0.15s ease;
-    --transition-normal: 0.25s ease;
-    --transition-slow:   0.4s ease;
-
-    /* Typography */
+    /* Transitions & Typography */
+    --transition-fast:   0.12s ease;
+    --transition-normal: 0.22s ease;
     --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 }
@@ -113,9 +110,11 @@ p { color: var(--text-secondary); font-size: 0.9375rem; }
    4. LAYOUT
    ========================================================================= */
 #app-container {
-    max-width: 680px;
+    width: 100%;
+    max-width: clamp(320px, 92%, 1100px);
     margin: 0 auto;
     padding: 0 1rem;
+    box-sizing: border-box;
 }
 
 .page {
@@ -177,10 +176,11 @@ p { color: var(--text-secondary); font-size: 0.9375rem; }
     font-size: 0.7rem;
     font-weight: 500;
     letter-spacing: 0.03em;
-    padding: 0.5rem 1rem;
+    padding: 0.5rem 0.75rem;
     border-radius: var(--radius-md);
     transition: color var(--transition-fast), background-color var(--transition-fast);
     min-width: 56px;
+    min-height: 44px;
     text-align: center;
 }
 
@@ -270,6 +270,7 @@ input[type="email"],
 textarea,
 select {
     width: 100%;
+    min-height: 44px;
     padding: 0.65rem 0.875rem;
     background-color: var(--bg-elevated);
     border: 1px solid var(--border);
@@ -351,6 +352,7 @@ textarea {
     justify-content: center;
     gap: 0.5rem;
     padding: 0.65rem 1.25rem;
+    min-height: 44px;
     border: none;
     border-radius: var(--radius-sm);
     font-family: var(--font-body);
@@ -405,7 +407,7 @@ textarea {
 }
 
 .btn-danger:hover {
-    background-color: rgba(196, 74, 74, 0.1);
+    background-color: rgba(166, 68, 68, 0.12);
 }
 
 .btn-sm {
@@ -441,8 +443,8 @@ textarea {
 
 .btn-icon {
     padding: 0.5rem;
-    min-width: 36px;
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
     background-color: transparent;
     border: 1px solid var(--border);
     color: var(--text-secondary);
@@ -475,15 +477,15 @@ button:disabled, .btn:disabled {
     white-space: nowrap;
 }
 
-.badge-priority-low      { background-color: rgba(74, 124, 89, 0.18); color: #6ab88a; }
-.badge-priority-normal   { background-color: rgba(74, 106, 156, 0.18); color: #7a9ed4; }
-.badge-priority-high     { background-color: rgba(196, 124, 58, 0.18); color: #e09050; }
-.badge-priority-critical { background-color: rgba(196, 74, 74, 0.18); color: #e07070; }
+.badge-priority-low      { background-color: rgba(94, 122, 104, 0.18); color: #9ab2a2; }
+.badge-priority-normal   { background-color: rgba(171, 122, 78, 0.18); color: #d0a57b; }
+.badge-priority-high     { background-color: rgba(184, 101, 66, 0.18); color: #d79a73; }
+.badge-priority-critical { background-color: rgba(166, 68, 68, 0.18); color: #d58b8b; }
 
-.badge-block-open    { background-color: rgba(74, 124, 89, 0.18); color: #6ab88a; }
-.badge-block-fixed   { background-color: rgba(74, 106, 156, 0.18); color: #7a9ed4; }
-.badge-block-habit   { background-color: rgba(156, 90, 140, 0.18); color: #c47ab8; }
-.badge-block-meeting { background-color: rgba(140, 122, 74, 0.18); color: #c4a84a; }
+.badge-block-open    { background-color: rgba(94, 122, 104, 0.18); color: #9ab2a2; }
+.badge-block-fixed   { background-color: rgba(171, 122, 78, 0.18); color: #d0a57b; }
+.badge-block-habit   { background-color: rgba(132, 107, 133, 0.18); color: #bfa6c3; }
+.badge-block-meeting { background-color: rgba(117, 109, 89, 0.18); color: #b4aa92; }
 
 .badge-duration {
     font-family: var(--font-mono);
@@ -679,8 +681,8 @@ button:disabled, .btn:disabled {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    width: 44px !important;
+    height: 44px !important;
     border-radius: 50%;
     border: 1px solid var(--border-light);
     background-color: var(--bg-elevated);
@@ -1183,8 +1185,8 @@ hr, .divider {
     white-space: nowrap;
 }
 
-.toast.toast-success { border-color: var(--score-green); color: #6ab88a; }
-.toast.toast-error   { border-color: var(--priority-critical); color: #e07070; }
+.toast.toast-success { border-color: var(--score-green); color: #9ab2a2; }
+.toast.toast-error   { border-color: var(--priority-critical); color: #d58b8b; }
 
 @keyframes toastIn {
     from { opacity: 0; transform: translateY(8px); }
@@ -1249,6 +1251,38 @@ hr, .divider {
     .timeline-dot {
         width: 16px;
         height: 16px;
+    }
+}
+
+@media (min-width: 768px) and (orientation: landscape) {
+    #app-container {
+        max-width: 1024px;
+    }
+
+    .onboarding-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .onboarding-submit-area {
+        grid-column: span 2;
+        padding-top: 1rem;
+    }
+
+    #focus-active-view {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .focus-header {
+        grid-column: span 2;
+        position: sticky;
+        top: 0;
+        z-index: 100;
     }
 }
 
@@ -1412,9 +1446,9 @@ hr, .divider {
     border-radius: var(--radius-pill);
     letter-spacing: 0.03em;
 }
-.focus-block-passed  { background: rgba(0,121,121,0.15); color: var(--accent-dark); }
-.focus-block-failed  { background: rgba(196,74,74,0.15);  color: var(--priority-critical); }
-.focus-block-pending { background: var(--bg-elevated);     color: var(--text-muted); }
+.focus-block-passed  { background: rgba(94, 122, 104, 0.15); color: var(--accent-dark); }
+.focus-block-failed  { background: rgba(166, 68, 68, 0.15);  color: var(--priority-critical); }
+.focus-block-pending { background: var(--bg-elevated);        color: var(--text-muted); }
 
 /* Meeting block row */
 .focus-meeting-block {
@@ -1444,9 +1478,9 @@ hr, .divider {
 .focus-habit-item.completed  { opacity: 0.4; }
 
 .focus-habit-check {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px;
     border-radius: 6px;
     border: 2px solid var(--border-light);
     background: transparent;
@@ -1471,9 +1505,9 @@ hr, .divider {
 .focus-habit-target { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 
 .focus-habit-photo-btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
     border-radius: var(--radius-sm);
     border: 1px solid var(--border-light);
     background: transparent;
@@ -1488,9 +1522,9 @@ hr, .divider {
 .focus-habit-photo-btn:hover { border-color: var(--accent); }
 
 .focus-habit-photo-thumb {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
     object-fit: cover;
     border-radius: var(--radius-sm);
     cursor: pointer;
@@ -1525,7 +1559,7 @@ hr, .divider {
 
 .focus-task-item.active {
     background-color: var(--accent-dim);
-    border: 1px solid rgba(36,177,177,0.2);
+    border: 1px solid rgba(171, 122, 78, 0.2);
     border-radius: var(--radius-md);
     margin: 0 -1rem;
     padding: 0.875rem 1rem;
@@ -1629,7 +1663,7 @@ hr, .divider {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     padding: 1rem 1.5rem calc(1.5rem + env(safe-area-inset-bottom));
     width: 100%;
-    max-width: 680px;
+    max-width: clamp(320px, 92%, 860px);
     margin: 0 auto;
     animation: sheetSlideUp 0.3s cubic-bezier(0.32,0.72,0,1) forwards;
 }
@@ -1735,6 +1769,7 @@ hr, .divider {
 
 .reason-btn {
     padding: 0.7rem 1rem;
+    min-height: 44px;
     background: var(--bg-overlay);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
