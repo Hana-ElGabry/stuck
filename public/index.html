@@ -1,1 +1,615 @@
-hi
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="description" content="Focus Dashboard — a behavioral growth engine for personal habit consistency and daily self-coaching." />
+    <meta name="theme-color" content="#111111" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Focus Dashboard</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- =====================================================================
+     TOAST CONTAINER
+     ===================================================================== -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- =====================================================================
+     APP SHELL
+     ===================================================================== -->
+<main id="app-container">
+
+    <!-- =================================================================
+         PAGE 1: ONBOARDING
+         ================================================================= -->
+    <section id="onboarding-page" class="page" aria-label="Onboarding">
+
+        <div class="onboarding-header">
+            <div class="app-wordmark">Focus Dashboard</div>
+            <h1>Design your best self.</h1>
+            <p>Set your baseline once. The system does the rest.</p>
+        </div>
+
+        <form id="onboarding-form" novalidate>
+
+            <!-- Section 1: Ideal Day Targets -->
+            <div class="onboarding-section">
+                <div class="onboarding-section-label">01 / 04</div>
+                <h2>My ideal day</h2>
+                <p>What does a great day look like for you? These become your daily targets.</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ideal-wake-time">Wake-up time</label>
+                        <input type="time" id="ideal-wake-time" value="06:00" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="ideal-sleep-time">Sleep time</label>
+                        <input type="time" id="ideal-sleep-time" value="23:00" required />
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ideal-work-hours">Work / study hours</label>
+                        <input type="number" id="ideal-work-hours" min="0" max="16" step="0.5" value="6" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="ideal-training-minutes">Training minutes</label>
+                        <input type="number" id="ideal-training-minutes" min="0" max="480" step="5" value="30" required />
+                    </div>
+                </div>
+
+                <!-- Custom targets -->
+                <div id="custom-targets-list" class="custom-targets-list"></div>
+                <button type="button" id="btn-add-custom-target" class="btn-add-target">
+                    <span>+</span> Add custom target
+                </button>
+            </div>
+
+            <!-- Section 2: Core Motivation -->
+            <div class="onboarding-section">
+                <div class="onboarding-section-label">02 / 04</div>
+                <h2>Why does any of this matter to you?</h2>
+                <p>Be honest. This becomes the context every AI conversation starts from.</p>
+
+                <div class="form-group">
+                    <textarea
+                        id="core-motivation"
+                        rows="5"
+                        placeholder="Write your real reason here. It doesn't have to be perfect."
+                        required
+                    ></textarea>
+                </div>
+            </div>
+
+            <!-- Section 3: Rest Days -->
+            <div class="onboarding-section">
+                <div class="onboarding-section-label">03 / 04</div>
+                <h2>Rest days</h2>
+                <p>Select up to 2 days. Rest days are excluded from challenge streak counting.</p>
+
+                <div id="rest-days-selector" class="day-selector" role="group" aria-label="Select rest days">
+                    <button type="button" class="day-btn" data-day="0" aria-pressed="false">Sun</button>
+                    <button type="button" class="day-btn" data-day="1" aria-pressed="false">Mon</button>
+                    <button type="button" class="day-btn" data-day="2" aria-pressed="false">Tue</button>
+                    <button type="button" class="day-btn" data-day="3" aria-pressed="false">Wed</button>
+                    <button type="button" class="day-btn" data-day="4" aria-pressed="false">Thu</button>
+                    <button type="button" class="day-btn selected" data-day="5" aria-pressed="true">Fri</button>
+                    <button type="button" class="day-btn" data-day="6" aria-pressed="false">Sat</button>
+                </div>
+            </div>
+
+            <!-- Section 4: Challenge Tier -->
+            <div class="onboarding-section">
+                <div class="onboarding-section-label">04 / 04</div>
+                <h2>Choose your first challenge</h2>
+                <p>Start where you are. Complete a tier to unlock the next one.</p>
+
+                <div id="challenge-selector" class="challenge-selector" role="group" aria-label="Challenge tiers">
+                    <button type="button" class="challenge-btn selected" data-tier="1" id="tier-1">
+                        <span class="tier-days">1</span>
+                        <span class="tier-label">day</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="2" id="tier-2" disabled>
+                        <span class="tier-days">2</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="4" id="tier-4" disabled>
+                        <span class="tier-days">4</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="7" id="tier-7" disabled>
+                        <span class="tier-days">7</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="14" id="tier-14" disabled>
+                        <span class="tier-days">14</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="21" id="tier-21" disabled>
+                        <span class="tier-days">21</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="30" id="tier-30" disabled>
+                        <span class="tier-days">30</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="60" id="tier-60" disabled>
+                        <span class="tier-days">60</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                    <button type="button" class="challenge-btn" data-tier="90" id="tier-90" disabled>
+                        <span class="tier-days">90</span>
+                        <span class="tier-label">days</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="onboarding-submit-area">
+                <button type="submit" id="onboarding-submit-btn" class="btn btn-primary btn-lg">
+                    Start my journey →
+                </button>
+            </div>
+
+        </form>
+    </section>
+
+    <!-- =================================================================
+         PAGE 2: FOCUS
+         ================================================================= -->
+    <section id="focus-page" class="page" aria-label="Focus">
+
+        <div class="focus-empty-state" id="focus-empty-state">
+            <div class="focus-empty-icon">◎</div>
+            <h2>No day planned yet.</h2>
+            <p>Head over to Plan to build today's block structure and assign your tasks.</p>
+            <button class="btn btn-primary" id="focus-go-to-plan-btn">Plan my day →</button>
+        </div>
+
+        <!-- This area will be populated by Stage 4 with the full focus UI -->
+        <div id="focus-active-view" style="display:none;">
+            <!-- Stage 4: score counter, block status, task list, etc. -->
+        </div>
+
+    </section>
+
+    <!-- =================================================================
+         PAGE 3: PLAN (STAGE 3)
+         ================================================================= -->
+    <section id="plan-page" class="page" aria-label="Plan your day">
+
+        <div class="plan-header">
+            <h1>Plan your day</h1>
+            <p id="plan-date-display" class="mono" style="font-size:0.85rem; color:var(--text-muted); margin-top:0.25rem;"></p>
+        </div>
+
+        <!-- Section 1: Quick Task Add -->
+        <div class="section-block">
+            <div class="section-header">
+                <h3>Quick capture</h3>
+            </div>
+            <div class="quick-add-row">
+                <input type="text" id="quick-task-input" placeholder="New task name…" aria-label="New task name" />
+                <button class="btn btn-primary" id="quick-add-btn">Add</button>
+            </div>
+            <div id="quick-add-prompt" style="display:none; margin-top:0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <button class="btn btn-sm btn-secondary" id="quick-schedule-today-btn">Schedule today</button>
+                <button class="btn btn-sm btn-ghost" id="quick-save-backlog-btn">Save to backlog</button>
+                <span id="quick-task-preview" style="font-size:0.85rem; color:var(--text-muted); align-self:center;"></span>
+            </div>
+        </div>
+
+        <!-- Section 2: Block Builder -->
+        <div class="section-block">
+            <div class="section-header flex justify-between items-center">
+                <div>
+                    <h3>Block builder</h3>
+                    <p style="font-size:0.8rem; margin-top:0.2rem;">Structure your day into time blocks.</p>
+                </div>
+                <button class="btn btn-sm btn-secondary" id="btn-show-block-form">+ Block</button>
+            </div>
+
+            <!-- Inline block creation form (hidden by default) -->
+            <div id="block-form-card" class="block-form-card" style="display:none;">
+                <h4 style="margin-bottom:1rem;">New block</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="block-start-time">Start</label>
+                        <input type="time" id="block-start-time" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="block-end-time">End</label>
+                        <input type="time" id="block-end-time" required />
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="block-type">Block type</label>
+                    <select id="block-type">
+                        <option value="Open">Open — any task</option>
+                        <option value="Fixed">Fixed — one project</option>
+                        <option value="Habit">Habit block</option>
+                        <option value="Meeting">Meeting / placeholder</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="block-label-group">
+                    <label for="block-label">Label <span style="color:var(--text-muted)">(optional)</span></label>
+                    <input type="text" id="block-label" placeholder="e.g. Deep work, Morning routine…" />
+                </div>
+
+                <div class="form-group" id="block-project-group" style="display:none;">
+                    <label for="block-project">Assigned project</label>
+                    <select id="block-project"></select>
+                </div>
+
+                <div class="flex gap-sm" style="margin-top:0.5rem;">
+                    <button type="button" class="btn btn-primary btn-sm" id="btn-add-block">Add block</button>
+                    <button type="button" class="btn btn-ghost btn-sm" id="btn-cancel-block-form">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Day timeline -->
+            <div id="day-timeline" class="day-timeline">
+                <div class="timeline-empty" id="timeline-empty">
+                    No blocks yet. Tap <strong>+ Block</strong> to start building your day.
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Task Allocator -->
+        <div class="section-block">
+            <div class="section-header">
+                <h3>Assign tasks</h3>
+                <p style="font-size:0.8rem; margin-top:0.2rem;">Drag tasks from your backlog into today's blocks.</p>
+            </div>
+
+            <div id="backlog-task-list" class="backlog-grid">
+                <div class="empty-state" id="backlog-empty">No pending tasks in your backlog.</div>
+            </div>
+        </div>
+
+        <!-- Section 4: AI Reality Check -->
+        <div class="section-block">
+            <div class="section-header">
+                <h3>AI reality check</h3>
+                <p style="font-size:0.8rem; margin-top:0.2rem;">Let the AI evaluate your plan before you commit.</p>
+            </div>
+
+            <button class="btn btn-ai btn-full" id="ai-reality-check-btn">
+                <span id="ai-btn-icon">✦</span>
+                <span id="ai-btn-label">Check my plan</span>
+            </button>
+
+            <div id="ai-response-area" class="ai-response-area">
+                <div class="ai-response-label">AI Assessment</div>
+                <div id="ai-response-text"></div>
+            </div>
+        </div>
+
+        <div style="height:1rem;"></div>
+
+    </section>
+
+    <!-- =================================================================
+         PAGE 4: CHAT (Stage 5 placeholder)
+         ================================================================= -->
+    <section id="chat-page" class="page" aria-label="AI Chat">
+        <div style="padding-top:1.5rem;">
+            <h1>AI Chat</h1>
+            <p style="margin-top:0.375rem;">Your recovery and replanning zone.</p>
+        </div>
+
+        <div class="chat-placeholder" style="margin-top:3rem;">
+            <div style="font-size:2.5rem; opacity:0.25; margin-bottom:1rem;">💬</div>
+            <p style="font-size:0.9rem;">Chat is built in Stage 5.<br/>Your context and history will live here.</p>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         PAGE 5: END DAY (Stage 6 placeholder)
+         ================================================================= -->
+    <section id="endday-page" class="page" aria-label="End Day">
+        <div style="padding-top:1.5rem;">
+            <h1>End Day</h1>
+            <p style="margin-top:0.375rem;">Close the day, review your score, and reset.</p>
+        </div>
+
+        <div class="chat-placeholder" style="margin-top:3rem;">
+            <div style="font-size:2.5rem; opacity:0.25; margin-bottom:1rem;">🌙</div>
+            <p style="font-size:0.9rem;">End Day flow is built in Stage 6.<br/>Score breakdown and reflection will live here.</p>
+        </div>
+    </section>
+
+    <!-- =================================================================
+         PAGE 6: PROFILE
+         ================================================================= -->
+    <section id="profile-page" class="page" aria-label="Profile & Settings">
+
+        <div class="profile-header">
+            <h1>Profile</h1>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tabs" role="tablist" aria-label="Profile sections">
+            <button class="tab-link active" data-tab="tab-habits" role="tab" aria-selected="true" id="tab-btn-habits">Habits</button>
+            <button class="tab-link" data-tab="tab-projects" role="tab" aria-selected="false" id="tab-btn-projects">Projects & Tasks</button>
+            <button class="tab-link" data-tab="tab-settings" role="tab" aria-selected="false" id="tab-btn-settings">Settings</button>
+        </div>
+
+        <!-- ---- TAB 1: Habits ---- -->
+        <div id="tab-habits" class="tab-content active" role="tabpanel" aria-labelledby="tab-btn-habits">
+
+            <form id="add-habit-form" class="card" novalidate>
+                <h3 style="margin-bottom:1rem;">New habit</h3>
+                <div class="form-group">
+                    <label for="habit-name">Habit name</label>
+                    <input type="text" id="habit-name" placeholder="e.g. Morning workout" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="habit-target-value">Target amount</label>
+                        <input type="number" id="habit-target-value" min="1" value="1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-target-unit">Unit</label>
+                        <input type="text" id="habit-target-unit" placeholder="times / min / pages" value="times" />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="habit-completion-method">Completion method</label>
+                    <select id="habit-completion-method">
+                        <option value="checkbox">Checkbox (no proof needed)</option>
+                        <option value="photo">Photo upload (visual proof)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Add habit</button>
+            </form>
+
+            <div class="spacer-md"></div>
+            <h4>Your habits</h4>
+            <div class="spacer-sm"></div>
+            <ul id="habits-list" class="item-list">
+                <li class="empty-state" id="habits-empty">No habits yet. Add your first one above.</li>
+            </ul>
+        </div>
+
+        <!-- ---- TAB 2: Projects & Tasks ---- -->
+        <div id="tab-projects" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-projects">
+
+            <!-- Projects sub-section -->
+            <form id="add-project-form" class="card" novalidate>
+                <h3 style="margin-bottom:1rem;">New project</h3>
+                <div class="form-group">
+                    <label for="project-name">Project name</label>
+                    <input type="text" id="project-name" placeholder="e.g. Graduation thesis" required />
+                </div>
+                <div class="form-group">
+                    <label for="project-description">Description <span style="color:var(--text-muted)">(optional)</span></label>
+                    <input type="text" id="project-description" placeholder="What is this project about?" />
+                </div>
+                <div class="form-group">
+                    <label for="project-deadline">Deadline <span style="color:var(--text-muted)">(optional)</span></label>
+                    <input type="date" id="project-deadline" />
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Add project</button>
+            </form>
+
+            <div class="spacer-md"></div>
+            <h4>Your projects</h4>
+            <div class="spacer-sm"></div>
+            <ul id="projects-list" class="item-list">
+                <li class="empty-state" id="projects-empty">No custom projects yet.</li>
+            </ul>
+
+            <div class="divider"></div>
+
+            <!-- Tasks sub-section -->
+            <form id="add-task-form" class="card" novalidate>
+                <h3 style="margin-bottom:1rem;">New task</h3>
+                <div class="form-group">
+                    <label for="task-name">Task name</label>
+                    <input type="text" id="task-name" placeholder="e.g. Write Chapter 3 intro" required />
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-project">Project</label>
+                        <select id="task-project"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="task-priority">Priority</label>
+                        <select id="task-priority">
+                            <option value="Low">Low</option>
+                            <option value="Normal" selected>Normal</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="task-duration">Estimated duration (min)</label>
+                        <input type="number" id="task-duration" min="5" step="5" value="30" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="task-deadline">Deadline <span style="color:var(--text-muted)">(optional)</span></label>
+                        <input type="date" id="task-deadline" />
+                    </div>
+                </div>
+
+                <!-- Challenge flag -->
+                <div class="form-group">
+                    <label class="form-check">
+                        <input type="checkbox" id="task-is-challenge" />
+                        <span>Mark as a personal challenge</span>
+                    </label>
+                </div>
+                <div id="challenge-category-group" style="display:none;" class="form-group">
+                    <label for="task-challenge-category">Challenge category</label>
+                    <select id="task-challenge-category">
+                        <option value="">Select a category…</option>
+                        <option value="Mentally exhausting">Mentally exhausting</option>
+                        <option value="Lack of know-how">Lack of know-how</option>
+                        <option value="Self-doubt">Self-doubt</option>
+                        <option value="Requires sustained energy">Requires sustained energy</option>
+                        <option value="other">Other (describe below)</option>
+                    </select>
+                    <input type="text" id="task-challenge-custom" placeholder="Describe the challenge…" style="margin-top:0.5rem; display:none;" />
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Add task</button>
+            </form>
+
+            <div class="spacer-md"></div>
+            <h4>Your tasks</h4>
+            <div class="spacer-sm"></div>
+            <div id="task-list-by-project">
+                <div class="empty-state" id="tasks-empty">No tasks yet. Add your first one above.</div>
+            </div>
+        </div>
+
+        <!-- ---- TAB 3: Settings ---- -->
+        <div id="tab-settings" class="tab-content" role="tabpanel" aria-labelledby="tab-btn-settings">
+
+            <form id="settings-form" novalidate>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">AI integration</h3>
+                    <div class="form-group">
+                        <label for="setting-api-key">Gemini API key</label>
+                        <input type="password" id="setting-api-key" placeholder="Paste your API key here" autocomplete="off" />
+                        <p style="font-size:0.8rem; margin-top:0.375rem;">Stored only in your browser. AI features are disabled without it.</p>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Ideal day targets</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-wake-time">Wake-up time</label>
+                            <input type="time" id="setting-wake-time" />
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-sleep-time">Sleep time</label>
+                            <input type="time" id="setting-sleep-time" />
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="setting-work-hours">Work hours</label>
+                            <input type="number" id="setting-work-hours" min="0" max="16" step="0.5" />
+                        </div>
+                        <div class="form-group">
+                            <label for="setting-training-minutes">Training (min)</label>
+                            <input type="number" id="setting-training-minutes" min="0" step="5" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Core motivation</h3>
+                    <div class="form-group">
+                        <textarea id="setting-motivation" rows="4" placeholder="Why does any of this matter to you?"></textarea>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Rest days</h3>
+                    <div id="setting-rest-days" class="day-selector">
+                        <button type="button" class="day-btn" data-day="0">Sun</button>
+                        <button type="button" class="day-btn" data-day="1">Mon</button>
+                        <button type="button" class="day-btn" data-day="2">Tue</button>
+                        <button type="button" class="day-btn" data-day="3">Wed</button>
+                        <button type="button" class="day-btn" data-day="4">Thu</button>
+                        <button type="button" class="day-btn" data-day="5">Fri</button>
+                        <button type="button" class="day-btn" data-day="6">Sat</button>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Optional tracking</h3>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="setting-track-weight" />
+                            <span>Track daily weight</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-check">
+                            <input type="checkbox" id="setting-track-screentime" />
+                            <span>Track daily screen time</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Redemption act</h3>
+                    <div class="form-group">
+                        <label for="setting-redemption-act">What's your personal redemption act?</label>
+                        <input type="text" id="setting-redemption-act" placeholder="e.g. 30 push-ups, 15-minute walk, journal…" />
+                        <p style="font-size:0.8rem; margin-top:0.375rem;">Something that takes 10–30 minutes. Shown when your day score falls below the acceptable threshold.</p>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Boundary Breaker days</h3>
+                    <div class="form-group">
+                        <label for="setting-boundary-breaker">Suggest Boundary Breaker days</label>
+                        <select id="setting-boundary-breaker">
+                            <option value="weekly">Once a week (after 3+ green days)</option>
+                            <option value="manual">Manual only — I'll trigger it myself</option>
+                            <option value="automatic">Automatic — system decides</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-bottom: 1.5rem;">
+                    <h3 style="margin-bottom:1rem; color:var(--priority-critical);">Danger zone</h3>
+                    <p style="font-size:0.875rem; margin-bottom:1rem;">Reset all data and return to onboarding. This cannot be undone.</p>
+                    <button type="button" class="btn btn-danger btn-sm" id="btn-reset-app">Reset all data</button>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Save settings</button>
+
+            </form>
+        </div>
+
+    </section>
+
+</main>
+
+<!-- =====================================================================
+     BOTTOM NAVIGATION
+     ===================================================================== -->
+<nav id="bottom-nav" aria-label="Main navigation">
+    <a href="#" class="nav-link" data-page="focus-page" id="nav-focus" aria-label="Focus">
+        <span class="nav-icon" aria-hidden="true">◎</span>
+        <span class="nav-label">Focus</span>
+    </a>
+    <a href="#" class="nav-link" data-page="plan-page" id="nav-plan" aria-label="Plan">
+        <span class="nav-icon" aria-hidden="true">▦</span>
+        <span class="nav-label">Plan</span>
+    </a>
+    <a href="#" class="nav-link" data-page="chat-page" id="nav-chat" aria-label="Chat">
+        <span class="nav-icon" aria-hidden="true">◈</span>
+        <span class="nav-label">Chat</span>
+    </a>
+    <a href="#" class="nav-link" data-page="endday-page" id="nav-endday" aria-label="End Day">
+        <span class="nav-icon" aria-hidden="true">☽</span>
+        <span class="nav-label">End Day</span>
+    </a>
+    <a href="#" class="nav-link" data-page="profile-page" id="nav-profile" aria-label="Profile">
+        <span class="nav-icon" aria-hidden="true">⊙</span>
+        <span class="nav-label">Profile</span>
+    </a>
+</nav>
+
+<script src="storage.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
