@@ -406,12 +406,22 @@
                         <input type="text" id="habit-target-unit" placeholder="times / min / pages" value="times" />
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="habit-completion-method">Completion method</label>
-                    <select id="habit-completion-method">
-                        <option value="checkbox">Checkbox (no proof needed)</option>
-                        <option value="photo">Photo upload (visual proof)</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="habit-completion-method">Completion method</label>
+                        <select id="habit-completion-method">
+                            <option value="checkbox">Checkbox (no proof needed)</option>
+                            <option value="photo">Photo upload (visual proof)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="habit-block-assignment">Target Habit Block</label>
+                        <select id="habit-block-assignment">
+                            <option value="Morning">Morning Block</option>
+                            <option value="Evening">Evening Block</option>
+                            <option value="Any" selected>Any Block / Flex</option>
+                        </select>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm" style="margin-top:0.5rem;">Add habit</button>
             </form>

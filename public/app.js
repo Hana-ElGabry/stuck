@@ -58,10 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const focusGoPlanBtn = document.getElementById('focus-go-to-plan-btn');
     if (focusGoPlanBtn) {
         focusGoPlanBtn.addEventListener('click', () => {
-            // Navigate using the nav link so active state updates correctly
-            const planNavLink = document.querySelector('.nav-link[data-page="plan-page"]');
-            if (planNavLink) planNavLink.click();
-            else showPage('plan-page');
+            // Direct script redirection patch passing target view attribute container mapping
+            showPage('plan-page');
         });
     }
 
@@ -1112,47 +1110,47 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function buildTimelineBlock(block) {
-        const typeKey = block.blockType.toLowerCase();
-        const dotClass = `timeline-dot-${['open','fixed','habit','meeting'].includes(typeKey) ? typeKey : 'open'}`;
-        const badgeClass = `badge-block-${['open','fixed','habit','meeting'].includes(typeKey) ? typeKey : 'open'}`;
+        const div = document.createElement('div');
+        div.className = 'timeline-block';
+        div.setAttribute('data-block-type', block.blockType);
+        div.dataset.blockId = block.id;
 
-        // Format checkpoint time
         const [endH, endM] = block.endTime.split(':').map(Number);
         const checkpointTotalMin = endH * 60 + endM + block.gracePeriodMinutes;
         const checkpointH = Math.floor(checkpointTotalMin / 60) % 24;
         const checkpointM = checkpointTotalMin % 60;
         const checkpointStr = `${String(checkpointH).padStart(2,'0')}:${String(checkpointM).padStart(2,'0')}`;
 
-        // Assigned tasks
         const assignedTasks = state.tasks.filter(t => t.blockId === block.id);
-
-        const assignedHTML = assignedTasks.length > 0
+        const tasksHTML = assignedTasks.length > 0
             ? `<ul class="timeline-assigned-tasks">${assignedTasks.map(t =>
                 `<li><span class="task-dot"></span>${escHtml(t.name)} <span class="badge badge-duration">${t.estimatedDuration}m</span></li>`
               ).join('')}</ul>`
             : '';
 
-        const div = document.createElement('div');
-        div.className = 'timeline-block';
-        div.dataset.blockId = block.id;
         div.innerHTML = `
-            <div class="timeline-dot ${dotClass}"></div>
-            <div class="timeline-block-body">
-                <div class="timeline-block-header">
-                    <span class="timeline-block-times">${block.startTime}–${block.endTime}</span>
-                    <span class="timeline-block-label">${escHtml(block.label)}</span>
-                    <span class="badge ${badgeClass}">${block.blockType}</span>
-                    <button class="btn btn-icon btn-sm" title="Delete block" data-delete-block="${block.id}" style="margin-left:auto; border:none; color:var(--text-muted);">✕</button>
+            <div class="timeline-block-info-sidebar">
+                <div class="timeline-time-start">${block.startTime}</div>
+                <div class="timeline-time-end">to ${block.endTime}</div>
+            </div>
+            <div class="timeline-block-content-core">
+                <div class="timeline-block-main-row">
+                    <span class="timeline-block-title-text">${escHtml(block.label)}</span>
+                    <span class="badge badge-block-${block.blockType.toLowerCase()}">${block.blockType}</span>
+                    <button class="btn btn-icon btn-sm" title="Delete block" data-delete-block="${block.id}" style="border:none; color:var(--text-muted); min-height:36px; min-width:36px;">✕</button>
                 </div>
-                <div class="timeline-block-footer">
-                    <span class="timeline-checkpoint">⏱ checkpoint ~${checkpointStr}</span>
-                    ${block.projectId && block.projectId !== 'general' ? `<span class="badge badge-block-fixed" style="font-size:0.65rem;">${escHtml(getProjectName(block.projectId))}</span>` : ''}
+                <div class="timeline-block-footer" style="margin-top: 4px; display: flex; align-items: center; gap: 8px;">
+                    <span class="timeline-checkpoint" style="font-size: 0.75rem; color: var(--text-muted);">⏱ Checkpoint: ~${checkpointStr}</span>
+                    ${block.projectId && block.projectId !== 'general' ? `<span class="badge badge-duration" style="font-size:0.65rem;">${escHtml(getProjectName(block.projectId))}</span>` : ''}
                 </div>
-                ${assignedHTML}
+                ${tasksHTML}
             </div>
         `;
 
-        div.querySelector(`[data-delete-block]`).addEventListener('click', () => deleteBlock(block.id));
+        div.querySelector(`[data-delete-block]`).addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteBlock(block.id);
+        });
         return div;
     }
 
@@ -1385,6 +1383,7 @@ document.addEventListener('DOMContentLoaded', () => {
             targetValue:       document.getElementById('habit-target-value').value,
             targetUnit:        document.getElementById('habit-target-unit').value || 'times',
             completionMethod:  document.getElementById('habit-completion-method').value,
+            habitBlockId:      document.getElementById('habit-block-assignment').value,
             isActive: true,
             createdDate: new Date().toISOString(),
         };
@@ -1432,16 +1431,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function toggleHabit(id) {
-        const habit = state.habits.find(h => h.id === id);
-        if (!habit) return;
-        habit.isActive = !habit.isActive;
-        saveData('habits', state.habits);
-        renderHabitsList();
-    }
-
-    function deleteHabit(id) {
-        state.habits = state.habits.filter(h => h.id !== id);
+            if (block.blockType === 'Habit') {
+                const localizedHabitArray = state.habits.filter(h => 
+                    h.isActive && (
+                        h.habitBlockId === block.label || 
+                        h.habitBlockId === 'Any' || 
+                        (block.label.toLowerCase().includes('morning') && h.habitBlockId === 'Morning') ||
+                        (block.label.toLowerCase().includes('evening') && h.habitBlockId === 'Evening')
+                    )
+                );
+                if (!localizedHabitArray.length) {
+                    const emptyPrompt = document.createElement('p'); emptyPrompt.className = 'empty-state'; emptyPrompt.style.padding = '0.5rem 0';
+                    emptyPrompt.textContent = 'No routine items scheduled for this block window slot.';
+                    section.appendChild(emptyPrompt);
+                } else {
+                    localizedHabitArray.forEach(h => section.appendChild(buildHabitItem(h, block.id)));
+                }
+                return section;
         saveData('habits', state.habits);
         renderHabitsList();
         showToast('Habit removed.');

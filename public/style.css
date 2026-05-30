@@ -1792,3 +1792,87 @@ hr, .divider {
     flex-direction: column;
     gap: 0.5rem;
 }
+
+/* Calendar Visual Grid Layout Specification */
+.day-timeline {
+    position: relative;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.timeline-block {
+    display: flex;
+    align-items: stretch;
+    gap: 1rem;
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-light);
+    border-left: 4px solid var(--accent);
+    border-radius: var(--radius-md);
+    padding: 0.875rem 1.125rem;
+    transition: transform var(--transition-fast), border-color var(--transition-fast);
+}
+
+.timeline-block:hover {
+    border-color: var(--text-muted);
+    transform: translateY(-1px);
+}
+
+.timeline-block[data-block-type="Open"]    { border-left-color: var(--block-open); }
+.timeline-block[data-block-type="Fixed"]   { border-left-color: var(--block-fixed); }
+.timeline-block[data-block-type="Habit"]   { border-left-color: var(--block-habit); }
+.timeline-block[data-block-type="Meeting"] { border-left-color: var(--block-meeting); }
+
+.timeline-block-time-sidebar,
+.timeline-block-info-sidebar {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-right: 1px solid var(--border);
+    padding-right: 0.875rem;
+    min-width: 64px;
+    font-family: var(--font-mono);
+    text-align: center;
+}
+
+.timeline-time-start {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.timeline-time-end {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 1px;
+}
+
+.timeline-block-content-core {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.timeline-block-main-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.timeline-block-title-text {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
