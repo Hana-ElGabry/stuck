@@ -10,41 +10,46 @@
    1. DESIGN TOKENS
    ========================================================================= */
 :root {
-    /* Backgrounds */
-    --bg-base:      #111111;
-    --bg-surface:   #1a1a1a;
-    --bg-elevated:  #222222;
-    --bg-overlay:   #2a2a2a;
+    /* Backgrounds — deep teal-derived dark */
+    --bg-base:      #071414;
+    --bg-surface:   #0d1e1e;
+    --bg-elevated:  #122828;
+    --bg-overlay:   #173232;
 
-    /* Text */
-    --text-primary:   #ede8df;
-    --text-secondary: #8a8278;
-    --text-muted:     #5a5650;
-    --text-inverse:   #111111;
+    /* Text — warm cream palette */
+    --text-primary:   #FFF0E4;
+    --text-secondary: #b8a898;
+    --text-muted:     #6b5f55;
+    --text-inverse:   #071414;
 
-    /* Accent — warm gold */
-    --accent:         #d4a843;
-    --accent-dim:     rgba(212, 168, 67, 0.12);
-    --accent-glow:    rgba(212, 168, 67, 0.25);
+    /* Accent — teal from the brand palette */
+    --accent:         #24B1B1;
+    --accent-dark:    #007979;
+    --accent-dim:     rgba(36, 177, 177, 0.12);
+    --accent-glow:    rgba(36, 177, 177, 0.28);
 
-    /* Borders */
-    --border:         #2e2e2e;
-    --border-light:   #3a3a3a;
+    /* Peach highlight */
+    --highlight:      #FFE0C5;
+    --highlight-dim:  rgba(255, 224, 197, 0.1);
 
-    /* Block type colors */
-    --block-open:     #4a7c59;
-    --block-fixed:    #4a6a9c;
+    /* Borders — teal-tinted dark */
+    --border:         #163030;
+    --border-light:   #1f4040;
+
+    /* Block type colors — teal-harmonious */
+    --block-open:     #007979;
+    --block-fixed:    #24B1B1;
     --block-habit:    #9c5a8c;
-    --block-meeting:  #8c7a4a;
+    --block-meeting:  #7a6a40;
 
     /* Priority colors */
-    --priority-low:      #4a7c59;
-    --priority-normal:   #4a6a9c;
+    --priority-low:      #2a8080;
+    --priority-normal:   #24B1B1;
     --priority-high:     #c47c3a;
     --priority-critical: #c44a4a;
 
     /* Score zones */
-    --score-green:   #4a8c5a;
+    --score-green:   #007979;
     --score-yellow:  #c4a43a;
     --score-red:     #c44a4a;
 

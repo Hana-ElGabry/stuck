@@ -51,7 +51,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // "Go to plan" shortcut from focus empty state
     const focusGoPlanBtn = document.getElementById('focus-go-to-plan-btn');
     if (focusGoPlanBtn) {
-        focusGoPlanBtn.addEventListener('click', () => showPage('plan-page'));
+        focusGoPlanBtn.addEventListener('click', () => {
+            // Navigate using the nav link so active state updates correctly
+            const planNavLink = document.querySelector('.nav-link[data-page="plan-page"]');
+            if (planNavLink) planNavLink.click();
+            else showPage('plan-page');
+        });
     }
 
     // =========================================================================
@@ -163,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 unlockedTiers:  [1],
                 startDate:      new Date().toISOString(),
             },
-            geminiApiKey: '',
+            geminiApiKey: (document.getElementById('onboarding-api-key')?.value || '').trim(),
             trackingFeaturesEnabled: { weight: false, screenTime: false },
             redemptionAct: '',
             boundaryBreakerFrequency: 'weekly',
