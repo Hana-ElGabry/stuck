@@ -54,6 +54,14 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    document.body.addEventListener('click', (e) => {
+        const target = e.target.closest('[data-go-page]');
+        if (!target) return;
+        e.preventDefault();
+        const pageId = target.getAttribute('data-go-page');
+        if (pageId) showPage(pageId);
+    });
+
     // "Go to plan" shortcut from focus empty state
     const focusGoPlanBtn = document.getElementById('focus-go-to-plan-btn');
     if (focusGoPlanBtn) {
