@@ -69,7 +69,9 @@ const Block = {
     blockType: 'Open', // 'Open', 'Fixed', 'Habit', 'Meeting', or custom
     projectId: null, // string or null for Fixed Blocks
     taskIds: [], // array of task IDs
-    checkpointStatus: 'pending' // 'pending', 'passed', 'failed'
+    checkpointStatus: 'pending', // 'pending', 'passed', 'failed'
+    gracePeriodMinutes: 0, // number, randomized 10-30 at creation time
+    checkpointFiredAt: null, // timestamp or null - when the checkpoint actually fired
 };
 
 const DailyLog = {
@@ -87,7 +89,19 @@ const DailyLog = {
     dailyReflection: '', // string
     redemptionActCompleted: false, // boolean
     wakeTime: '', // time string
-    sleepTime: '' // time string
+    sleepTime: '', // time string
+    isClosed: false, // boolean - locks the day after Close Day is pressed
+
+const Project = {
+    id: '',
+    name: '',
+    description: '',
+    deadline: null,
+    isArchived: false,
+    createdDate: ''
+};
+    blocksLog: [], // array of { blockId, status: 'passed'/'failed', failReason }
+    challengeDayCount: 0 // number - which day of the current challenge this is
 };
 */
 
